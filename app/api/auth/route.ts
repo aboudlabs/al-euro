@@ -15,7 +15,6 @@ import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
-// Never include password_hash here: this list is what is returned to the browser.
 const USER_FIELDS = "id, role, name, phone, city, license, specs, tier, debt_limit, debt_balance, cashback_balance, my_ref_code, is_active, created_at";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -27,6 +26,34 @@ function json(body: unknown, status = 200) {
 function serverError(context: string, err: unknown, message = "حدث خطأ غير متوقع في الخادم") {
   console.error(`[api/auth] ${context}:`, err);
   return json({ error: message }, 500);
+}
+
+async function sendWhatsAppOtp(phone: string, code: string) {
+  const apiUrl = process.env.GREEN_API_URL;
+  const instanceId = process.env.GREEN_API_INSTANCE_ID;
+  const token = process.env.GREEN_API_TOKEN;
+
+  if (!apiUrl || !instanceId || !token) {
+    console.error("[Green-API] Missing environment variables");
+    return false;
+  }
+
+  const url = `${apiUrl}/waInstance${instanceId}/sendMessage/${token}`;
+  const chatId = `${phone}@c.us`;
+  const message = `رمز التحقق الخاص بك في تطبيق EURO CARS هو: *${code}*.\nصالح لمدة 5 دقائق.`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, message }),
+    });
+    const data = await res.json();
+    return res.ok && Boolean(data.idMessage);
+  } catch (err) {
+    console.error("[Green-API] Error sending message:", err);
+    return false;
+  }
 }
 
 export async function GET() {
@@ -61,11 +88,29 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { mode = "login", role, name, phone, password, license, city, spec, refCode, refSignature, client } = body ?? {};
+    const { mode = "login", role, name, phone, password, license, city, spec, refCode, refSignature, client, otpCode, otpToken } = body ?? {};
     const isMobileClient = client === "mobile";
 
-    // "admin" accounts can only sign in; they are created / promoted manually in the database.
     const allowedRoles = mode === "login" ? (isMobileClient ? ["workshop", "marketer"] : ["workshop", "marketer", "admin"]) : ["workshop", "marketer"];
+
+    if (mode === "send-otp") {
+      if (!phone || String(phone).trim().length < 8) {
+        return json({ error: "يرجى إدخال رقم موبايل صالح" }, 400);
+      }
+      const cleanPhone = String(phone).trim();
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = Date.now() + 5 * 60 * 1000;
+      const secret = process.env.AUTH_SECRET || "euro-secret";
+      const signature = crypto.createHmac("sha256", secret).update(`${cleanPhone}:${code}:${expires}`).digest("hex");
+      const tokenPayload = Buffer.from(JSON.stringify({ p: cleanPhone, c: code, e: expires, s: signature })).toString("base64");
+
+      const sent = await sendWhatsAppOtp(cleanPhone, code);
+      if (!sent) {
+        return json({ error: "تعذر إرسال رسالة الواتساب، تأكد من صحة الرقم أو ربط حساب الواتساب" }, 500);
+      }
+      return json({ ok: true, otpToken: tokenPayload, message: "تم إرسال رمز التحقق إلى واتساب بنجاح" });
+    }
+
     if (!["login", "register"].includes(mode) || !allowedRoles.includes(role)) {
       return json({ error: "نوع العملية أو الحساب غير صالح" }, 400);
     }
@@ -110,6 +155,23 @@ export async function POST(req: Request) {
       return json({ ok: true, user: publicUser, ...(accessToken ? { accessToken } : {}) });
     }
 
+    if (!otpCode || !otpToken) {
+      return json({ error: "يرجى إدخال رمز التحقق المرسل إلى واتساب" }, 400);
+    }
+    try {
+      const decoded = JSON.parse(Buffer.from(String(otpToken), "base64").toString("utf-8"));
+      const secret = process.env.AUTH_SECRET || "euro-secret";
+      const expectedSig = crypto.createHmac("sha256", secret).update(`${cleanPhone}:${decoded.c}:${decoded.e}`).digest("hex");
+      if (!safeEqual(expectedSig, decoded.s) || decoded.p !== cleanPhone || Date.now() > decoded.e) {
+        return json({ error: "رمز التحقق غير صحيح أو انتهت صلاحيته، أعد طلب رمز جديد" }, 400);
+      }
+      if (String(otpCode).trim() !== String(decoded.c)) {
+        return json({ error: "رمز التحقق المدخل غير صحيح" }, 400);
+      }
+    } catch {
+      return json({ error: "بيانات التحقق غير صالحة" }, 400);
+    }
+
     if (existingUser) return json({ error: "هذا الرقم مسجل مسبقاً بنفس نوع الحساب." }, 400);
     if (!name || !String(name).trim()) return json({ error: "الاسم مطلوب لإنشاء الحساب" }, 400);
     if (role === "workshop" && (!license || !city || !spec)) {
@@ -120,8 +182,6 @@ export async function POST(req: Request) {
       ? String(spec).split(/[,،]/).map((s: string) => s.trim()).filter(Boolean)
       : [];
 
-    // Referral attribution is validated on the server. Signed invitation links cannot be
-    // changed to another marketer's code without invalidating the signature.
     let validatedReferralCode: string | null = null;
     if (role === "workshop" && typeof refCode === "string" && refCode.trim()) {
       const candidateCode = refCode.trim().slice(0, 80);
