@@ -1,3 +1,5 @@
+export const MAIN_BRANCH = "إدلب - سرمدا";
+
 type PartInput = {
   name: string; brand: string; model: string; years: string; oem_number: string;
   alt_grade: string | null; price: number; stock: number; branch: string; image_url: string | null; is_active: boolean;
@@ -21,9 +23,12 @@ export function parsePart(body: Record<string, unknown>, partial: boolean): { ok
     str("model", "الموديل", 120, false),
     str("years", "سنوات الصنع", 60, false),
     str("oem_number", "رقم القطعة (OEM)", 64, true),
-    str("branch", "الفرع", 80, true),
   ].filter(Boolean);
   if (errs.length) return { ok: false, error: errs[0] as string };
+
+  if (!partial || "branch" in body) {
+    v.branch = MAIN_BRANCH;
+  }
 
   if ("alt_grade" in body) {
     if (body.alt_grade !== null && typeof body.alt_grade !== "string") return { ok: false, error: "درجة البديل غير صالحة" };
@@ -50,4 +55,3 @@ export function parsePart(body: Record<string, unknown>, partial: boolean): { ok
   }
   return { ok: true, value: v };
 }
-
