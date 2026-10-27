@@ -8,8 +8,17 @@ export default function AdminOverview() {
   const { data, error, loading, reload } = useApi<{ overview: Overview }>("/api/admin/overview");
   const o = data?.overview;
 
-  const totalStock = o ? o.branches.reduce((s, b) => s + Number(b.total_stock), 0) : 0;
-  const totalValue = o ? o.branches.reduce((s, b) => s + Number(b.stock_value), 0) : 0;
+  // EURO currently operates one physical branch: Idlib – Sarmada.
+  // Combine legacy/demo branch labels into the single real branch in the overview.
+  const branchSummary = o && o.branches.length ? [{
+    branch: "إدلب – سرمدا",
+    parts_count: o.branches.reduce((sum, b) => sum + Number(b.parts_count), 0),
+    total_stock: o.branches.reduce((sum, b) => sum + Number(b.total_stock), 0),
+    stock_value: o.branches.reduce((sum, b) => sum + Number(b.stock_value), 0),
+    low_count: o.branches.reduce((sum, b) => sum + Number(b.low_count), 0),
+  }] : [];
+  const totalStock = branchSummary.reduce((s, b) => s + Number(b.total_stock), 0);
+  const totalValue = branchSummary.reduce((s, b) => s + Number(b.stock_value), 0);
 
   return (
     <>
@@ -39,11 +48,11 @@ export default function AdminOverview() {
                 <h2 className="font-semibold text-white">المخزون حسب الفرع</h2>
                 <span className="text-xs text-white/55">{totalStock.toLocaleString("en-US")} قطعة · قيمة {money(totalValue)}</span>
               </div>
-              {!o.branches.length ? (
+              {!branchSummary.length ? (
                 <p className="py-6 text-center text-sm text-white/55">لا توجد قطع فعّالة.</p>
               ) : (
                 <div className="space-y-3">
-                  {o.branches.map((b) => {
+                  {branchSummary.map((b) => {
                     const pct = totalStock ? Math.round((Number(b.total_stock) / totalStock) * 100) : 0;
                     return (
                       <div key={b.branch}>
