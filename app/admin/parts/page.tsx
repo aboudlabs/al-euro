@@ -5,23 +5,24 @@ import { ImagePlus, Pencil, Plus, Save, Search } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import { BRANDS } from "@/lib/data";
 import { LOW_STOCK_THRESHOLD } from "@/lib/status";
+import { MAIN_BRANCH } from "@/lib/admin-parts";
 import { api, Badge, Empty, ErrorBox, Lightbox, Modal, PageHead, Spinner, Thumb, toast, useApi } from "@/components/admin/kit";
 import type { AdminPart } from "@/lib/admin-types";
 
 type Form = { name: string; brand: string; model: string; years: string; oem_number: string; alt_grade: string; price: string; stock: string; branch: string; image_url: string; is_active: boolean };
 
-const blank = (branch = ""): Form => ({ name: "", brand: "", model: "", years: "", oem_number: "", alt_grade: "", price: "", stock: "0", branch, image_url: "", is_active: true });
+const blank = (): Form => ({ name: "", brand: "", model: "", years: "", oem_number: "", alt_grade: "", price: "", stock: "0", branch: MAIN_BRANCH, image_url: "", is_active: true });
 const toForm = (p: AdminPart): Form => ({
   name: p.name, brand: p.brand, model: p.model ?? "", years: p.years ?? "", oem_number: p.oem_number, alt_grade: p.alt_grade ?? "",
-  price: String(Number(p.price)), stock: String(p.stock), branch: p.branch ?? "", image_url: p.image_url ?? "", is_active: p.is_active,
+  price: String(Number(p.price)), stock: String(p.stock), branch: MAIN_BRANCH, image_url: p.image_url ?? "", is_active: p.is_active,
 });
 
-function PartModal({ part, branches, onClose, onSaved }: { part: AdminPart | "new" | null; branches: string[]; onClose: () => void; onSaved: () => void }) {
+function PartModal({ part, onClose, onSaved }: { part: AdminPart | "new" | null; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Form>(blank());
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (part) setF(part === "new" ? blank(branches[0] ?? "") : toForm(part)); }, [part, branches]);
+  useEffect(() => { if (part) setF(part === "new" ? blank() : toForm(part)); }, [part]);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((s) => ({ ...s, [k]: v }));
 
   async function upload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -50,7 +51,7 @@ function PartModal({ part, branches, onClose, onSaved }: { part: AdminPart | "ne
     setBusy(true);
     const body = {
       name: f.name, brand: f.brand, model: f.model, years: f.years, oem_number: f.oem_number,
-      alt_grade: f.alt_grade.trim() || null, price: Number(f.price), stock: Number(f.stock), branch: f.branch,
+      alt_grade: f.alt_grade.trim() || null, price: Number(f.price), stock: Number(f.stock), branch: MAIN_BRANCH,
       image_url: f.image_url.trim() || null, is_active: f.is_active,
     };
     const r = part === "new"
@@ -91,9 +92,8 @@ function PartModal({ part, branches, onClose, onSaved }: { part: AdminPart | "ne
         <label className="space-y-1 text-xs text-white/65">الكمية في المخزون *
           <input className="inp" required type="number" min={0} step="1" inputMode="numeric" dir="ltr" value={f.stock} onChange={(e) => set("stock", e.target.value)} />
         </label>
-        <label className="space-y-1 text-xs text-white/65">الفرع *
-          <input className="inp" required list="branch-list" maxLength={80} value={f.branch} onChange={(e) => set("branch", e.target.value)} />
-          <datalist id="branch-list">{branches.map((b) => <option key={b} value={b} />)}</datalist>
+        <label className="space-y-1 text-xs text-white/65">الفرع
+          <input className="inp opacity-75" readOnly value={MAIN_BRANCH} />
         </label>
         <label className="space-y-1 text-xs text-white/65">درجة البديل (اختياري)
           <input className="inp" maxLength={60} value={f.alt_grade} onChange={(e) => set("alt_grade", e.target.value)} placeholder="مثال: OEM / Aftermarket" />
@@ -147,7 +147,7 @@ function PartRow({ p, onEdit, onChanged, onZoom }: { p: AdminPart; onEdit: () =>
           {p.stock <= 0 ? <Badge tone="err">نفد</Badge> : p.stock <= LOW_STOCK_THRESHOLD ? <Badge tone="warn">منخفض</Badge> : null}
         </div>
       </td>
-      <td className="px-2 text-white/80">{p.branch || "—"}</td>
+      <td className="px-2 text-white/80">{MAIN_BRANCH}</td>
       <td className="px-2"><Toggle on={p.is_active} set={(v) => { if (!busy) patch({ is_active: v }, v ? "القطعة ظاهرة الآن للعملاء" : "تم إخفاء القطعة"); }} /></td>
       <td className="px-4 text-end">
         <div className="inline-flex gap-1.5">
@@ -163,7 +163,6 @@ function PartsInner() {
   const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [dq, setDq] = useState("");
-  const [branch, setBranch] = useState("");
   const [active, setActive] = useState("");
   const [low, setLow] = useState(sp.get("low") === "1");
   const [edit, setEdit] = useState<AdminPart | "new" | null>(null);
@@ -172,28 +171,22 @@ function PartsInner() {
 
   const params = new URLSearchParams();
   if (dq) params.set("q", dq);
-  if (branch) params.set("branch", branch);
   if (active) params.set("active", active);
   if (low) params.set("low", "1");
   const { data, error, loading, reload } = useApi<{ parts: AdminPart[]; branches: string[] }>(`/api/admin/parts?${params}`);
   const list = data?.parts ?? [];
-  const branches = data?.branches ?? [];
 
   return (
     <>
-      <PageHead title="قطع الغيار والمخزون" sub="إضافة وتعديل القطع وتحديث السعر والكمية والفرع والصورة">
+      <PageHead title="قطع الغيار والمخزون" sub={`الفرع المعتمد: ${MAIN_BRANCH}`}>
         <button type="button" className="btn" onClick={() => setEdit("new")}><Plus size={16} />قطعة جديدة</button>
       </PageHead>
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative sm:col-span-2">
           <Search size={16} className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-white/45" />
           <input className="inp pe-9" placeholder="بحث بالاسم أو الماركة أو رقم القطعة" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <select className="inp" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label="الفرع">
-          <option value="">كل الفروع</option>
-          {branches.map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
         <select className="inp" value={active} onChange={(e) => setActive(e.target.value)} aria-label="الظهور">
           <option value="">ظاهرة ومخفية</option>
           <option value="1">ظاهرة فقط</option>
@@ -216,7 +209,7 @@ function PartsInner() {
           </table>
         </div>
       )}
-      <PartModal part={edit} branches={branches} onClose={() => setEdit(null)} onSaved={reload} />
+      <PartModal part={edit} onClose={() => setEdit(null)} onSaved={reload} />
       <Lightbox src={zoom} onClose={() => setZoom(null)} />
     </>
   );
