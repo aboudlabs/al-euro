@@ -197,12 +197,12 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`menu-surface flex max-h-full w-full flex-col rounded-3xl text-white shadow-2xl ${wide ? "max-w-2xl" : "max-w-md"}`}>
+      <div className={`menu-surface flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-3xl text-white shadow-2xl ${wide ? "max-w-2xl" : "max-w-xl"}`}>
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <h3 className="text-lg font-semibold">{title}</h3>
           <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:text-white"><X size={18} /></button>
         </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-5 py-4">{footer}</div>}
       </div>
     </div>
@@ -214,7 +214,7 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <aside className="menu-surface absolute inset-y-0 end-0 flex w-full max-w-xl flex-col text-white shadow-2xl">
+      <aside className="menu-surface absolute inset-y-0 end-0 flex w-full max-w-2xl flex-col text-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
           <h3 className="text-lg font-semibold">{title}</h3>
           <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:text-white"><X size={18} /></button>
@@ -301,6 +301,7 @@ export function ConfirmModal({
       open={open}
       onClose={busy ? () => undefined : onClose}
       title={title}
+      wide
       footer={
         <>
           <button type="button" className="btn2" disabled={busy} onClick={onClose}>تراجع</button>
