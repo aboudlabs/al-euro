@@ -51,18 +51,30 @@ export default function OrderActions({ order, onDone, cancelLabel = "إلغاء 
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className={`flex flex-wrap items-center ${compact ? "justify-end gap-1.5" : "gap-2"}`}>
         {options.map((s) => {
           if (s === "cancelled")
             return (
-              <button key={s} type="button" onClick={() => setTarget(s)} className={`inline-flex items-center justify-center gap-1.5 rounded-full border border-[#FF453A]/40 bg-[#FF453A]/10 px-4 text-sm font-semibold text-[#FF6961] transition hover:bg-[#FF453A]/20 ${compact ? "py-1.5" : "py-2.5"}`}>
-                <XCircle size={16} />{cancelLabel}
+              <button
+                key={s}
+                type="button"
+                onClick={() => setTarget(s)}
+                className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#FF453A]/40 bg-[#FF453A]/10 font-semibold text-[#FF6961] transition hover:bg-[#FF453A]/20 ${
+                  compact ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm"
+                }`}
+              >
+                <XCircle size={compact ? 14 : 16} />{cancelLabel}
               </button>
             );
           const Icon = NEXT_ICON[s] ?? Check;
           return (
-            <button key={s} type="button" onClick={() => setTarget(s)} className={`btn ${compact ? "!py-1.5" : ""}`}>
-              <Icon size={16} />{s === "approved" && approveLabel ? approveLabel : NEXT_LABEL[s] ?? ORDER_STATUS_LABEL[s]}
+            <button
+              key={s}
+              type="button"
+              onClick={() => setTarget(s)}
+              className={`btn whitespace-nowrap ${compact ? "!px-3 !py-1.5 !text-xs" : ""}`}
+            >
+              <Icon size={compact ? 14 : 16} />{s === "approved" && approveLabel ? approveLabel : NEXT_LABEL[s] ?? ORDER_STATUS_LABEL[s]}
             </button>
           );
         })}
@@ -81,4 +93,4 @@ export default function OrderActions({ order, onDone, cancelLabel = "إلغاء 
       />
     </>
   );
-}
+              }
