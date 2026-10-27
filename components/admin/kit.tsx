@@ -1,6 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, ExternalLink, Loader2, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+
+/* ------------------------------------------------------------------ portal */
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(children, document.body);
+}
 
 /* ------------------------------------------------------------------ fetch helpers */
 
@@ -79,17 +89,19 @@ export function Toaster() {
     return () => window.removeEventListener("admin-toast", on);
   }, []);
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[200] flex flex-col items-center gap-2 px-4" aria-live="polite">
-      {items.map((t) => (
-        <div
-          key={t.id}
-          role={t.kind === "err" ? "alert" : "status"}
-          className={`menu-surface pointer-events-auto max-w-md rounded-2xl px-4 py-3 text-sm font-medium shadow-xl ${t.kind === "err" ? "border-[#FF453A]/50 text-[#FF6961]" : "border-[#30D158]/40 text-[#30D158]"}`}
-        >
-          {t.message}
-        </div>
-      ))}
-    </div>
+    <Portal>
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-[200] flex flex-col items-center gap-2 px-4" aria-live="polite">
+        {items.map((t) => (
+          <div
+            key={t.id}
+            role={t.kind === "err" ? "alert" : "status"}
+            className={`menu-surface pointer-events-auto max-w-md rounded-2xl px-4 py-3 text-sm font-medium shadow-xl ${t.kind === "err" ? "border-[#FF453A]/50 text-[#FF6961]" : "border-[#30D158]/40 text-[#30D158]"}`}
+          >
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </Portal>
   );
 }
 
@@ -196,16 +208,34 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   useEscape(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`menu-surface flex h-[min(88dvh,760px)] w-full flex-col overflow-hidden rounded-t-3xl border border-white/10 text-white shadow-2xl sm:h-auto sm:max-h-[min(88dvh,760px)] sm:rounded-3xl ${wide ? "sm:max-w-2xl" : "sm:max-w-xl"}`}>
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-2 text-white/65 hover:bg-white/10 hover:text-white"><X size={18} /></button>
+    <Portal>
+      <div
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        <div
+          className={`menu-surface flex h-auto max-h-[min(88dvh,760px)] w-full flex-col overflow-hidden rounded-3xl border border-white/10 text-white shadow-2xl ${
+            wide ? "max-w-2xl" : "max-w-md"
+          }`}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5 sm:py-4">
+            <h3 className="text-base font-semibold sm:text-lg">{title}</h3>
+            <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:bg-white/10 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:p-5">{children}</div>
+          {footer && (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-white/10 bg-black/20 px-4 py-3.5 sm:px-5">
+              {footer}
+            </div>
+          )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:p-5">{children}</div>
-        {footer && <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-white/10 bg-black/20 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">{footer}</div>}
       </div>
-    </div>
+    </Portal>
   );
 }
 
@@ -213,15 +243,17 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
   useEscape(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <aside className="menu-surface absolute inset-y-0 end-0 flex w-full max-w-2xl flex-col text-white shadow-2xl">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:text-white"><X size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
-      </aside>
-    </div>
+    <Portal>
+      <div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <aside className="menu-surface fixed inset-y-0 end-0 flex h-dvh w-full max-w-xl flex-col text-white shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5 sm:py-4">
+            <h3 className="text-base font-semibold sm:text-lg">{title}</h3>
+            <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:bg-white/10 hover:text-white"><X size={18} /></button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
+        </aside>
+      </div>
+    </Portal>
   );
 }
 
@@ -238,40 +270,42 @@ export function Lightbox({ src, onClose }: { src: string | null; onClose: () => 
   const change = (z: number) => { const next = clamp(z); setZoom(next); if (next === 1) setPos({ x: 0, y: 0 }); };
 
   return (
-    <div className="fixed inset-0 z-[150] flex flex-col bg-black/90" role="dialog" aria-modal="true" aria-label="معاينة الإيصال">
-      <div className="flex items-center justify-between gap-2 p-3 text-snow">
-        <div className="flex items-center gap-1">
-          <button type="button" aria-label="تكبير" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(zoom + 0.5)}><ZoomIn size={18} /></button>
-          <button type="button" aria-label="تصغير" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(zoom - 0.5)}><ZoomOut size={18} /></button>
-          <button type="button" aria-label="إعادة الضبط" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(1)}><RotateCcw size={18} /></button>
-          <span className="px-2 text-sm tabular-nums">{Math.round(zoom * 100)}%</span>
+    <Portal>
+      <div className="fixed inset-0 z-[150] flex flex-col bg-black/90" role="dialog" aria-modal="true" aria-label="معاينة الإيصال">
+        <div className="flex items-center justify-between gap-2 p-3 text-snow">
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="تكبير" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(zoom + 0.5)}><ZoomIn size={18} /></button>
+            <button type="button" aria-label="تصغير" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(zoom - 0.5)}><ZoomOut size={18} /></button>
+            <button type="button" aria-label="إعادة الضبط" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={() => change(1)}><RotateCcw size={18} /></button>
+            <span className="px-2 text-sm tabular-nums">{Math.round(zoom * 100)}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <a href={src} target="_blank" rel="noreferrer" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" aria-label="فتح في تبويب جديد"><ExternalLink size={18} /></a>
+            <button type="button" aria-label="إغلاق" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={onClose}><X size={18} /></button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <a href={src} target="_blank" rel="noreferrer" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" aria-label="فتح في تبويب جديد"><ExternalLink size={18} /></a>
-          <button type="button" aria-label="إغلاق" className="rounded-full bg-white/15 p-2.5 hover:bg-white/25" onClick={onClose}><X size={18} /></button>
+        <div
+          className="relative flex-1 touch-none overflow-hidden"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+          onWheel={(e) => change(zoom + (e.deltaY < 0 ? 0.25 : -0.25))}
+          onPointerDown={(e) => { if (zoom > 1) { drag.current = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } }}
+          onPointerMove={(e) => { const d = drag.current; if (d) setPos({ x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y }); }}
+          onPointerUp={() => { drag.current = null; }}
+          onPointerCancel={() => { drag.current = null; }}
+          onDoubleClick={() => change(zoom > 1 ? 1 : 2.5)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt="صورة مكبّرة"
+            draggable={false}
+            className={`absolute inset-0 m-auto max-h-full max-w-full select-none object-contain ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"}`}
+            style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`, transition: drag.current ? "none" : "transform 0.15s" }}
+          />
         </div>
+        <p className="p-2 text-center text-xs text-white/60">عجلة الفأرة أو الأزرار للتكبير · اسحب للتحريك · نقر مزدوج للتبديل</p>
       </div>
-      <div
-        className="relative flex-1 touch-none overflow-hidden"
-        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        onWheel={(e) => change(zoom + (e.deltaY < 0 ? 0.25 : -0.25))}
-        onPointerDown={(e) => { if (zoom > 1) { drag.current = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } }}
-        onPointerMove={(e) => { const d = drag.current; if (d) setPos({ x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y }); }}
-        onPointerUp={() => { drag.current = null; }}
-        onPointerCancel={() => { drag.current = null; }}
-        onDoubleClick={() => change(zoom > 1 ? 1 : 2.5)}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt="صورة مكبّرة"
-          draggable={false}
-          className={`absolute inset-0 m-auto max-h-full max-w-full select-none object-contain ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"}`}
-          style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`, transition: drag.current ? "none" : "transform 0.15s" }}
-        />
-      </div>
-      <p className="p-2 text-center text-xs text-white/60">عجلة الفأرة أو الأزرار للتكبير · اسحب للتحريك · نقر مزدوج للتبديل</p>
-    </div>
+    </Portal>
   );
 }
 
@@ -301,7 +335,6 @@ export function ConfirmModal({
       open={open}
       onClose={busy ? () => undefined : onClose}
       title={title}
-      wide
       footer={
         <>
           <button type="button" className="btn2" disabled={busy} onClick={onClose}>تراجع</button>
@@ -309,20 +342,21 @@ export function ConfirmModal({
             type="button"
             disabled={blocked}
             onClick={() => onConfirm(reason.trim())}
-            className={danger ? "inline-flex items-center justify-center gap-2 rounded-full bg-[#FF453A] px-4 py-2.5 text-sm font-semibold text-snow disabled:opacity-50" : "btn"}
+            className={danger ? "inline-flex items-center justify-center gap-2 rounded-full bg-[#FF453A] px-4 py-2 text-sm font-semibold text-snow disabled:opacity-50" : "btn"}
           >
             {busy && <Loader2 size={15} className="animate-spin" />}{confirmLabel}
           </button>
         </>
       }
     >
-      {message && <div className="mb-3 text-sm leading-relaxed text-white/80">{message}</div>}
+      {message && <div className="text-sm leading-relaxed text-white/80">{message}</div>}
       {reasonLabel && (
-        <label className="block space-y-2 text-sm text-white/65">
+        <label className="mt-3 block space-y-2 text-sm text-white/65">
           {reasonLabel}
           <textarea className="inp min-h-[88px]" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
         </label>
       )}
     </Modal>
   );
-}
+                                       }
+              
