@@ -7,6 +7,7 @@ import { parsePart } from "@/lib/admin-parts";
 export const dynamic = "force-dynamic";
 
 const FIELDS = "id, name, brand, model, years, oem_number, alt_grade, price, stock, branch, image_url, is_active, created_at";
+const MAIN_BRANCH = "إدلب - سرمدا";
 
 /** ?q=  ?branch=  ?active=1|0  ?low=1 (stock <= 5) */
 export async function GET(req: Request) {
@@ -24,12 +25,14 @@ export async function GET(req: Request) {
   if (active === "1") query = query.eq("is_active", true);
   if (active === "0") query = query.eq("is_active", false);
   if (url.searchParams.get("low") === "1") query = query.lte("stock", 5);
-  const { data, error } = await query.order("name", { ascending: true }).limit(clampLimit(url.searchParams.get("limit"), 500, 1000));
+
+  const { data, error } = await query
+    .order("name", { ascending: true })
+    .limit(clampLimit(url.searchParams.get("limit"), 500, 1000));
+
   if (error) return dbFail("parts list", error, "تعذر تحميل القطع");
 
-  const { data: all } = await getSupabaseAdmin().from("parts").select("branch").limit(5000);
-  const branches = Array.from(new Set((all ?? []).map((p) => (p.branch ?? "").trim()).filter(Boolean))).sort();
-  return ok({ parts: data ?? [], branches });
+  return ok({ parts: data ?? [], branches: [MAIN_BRANCH] });
 }
 
 export async function POST(req: Request) {
@@ -38,16 +41,29 @@ export async function POST(req: Request) {
 
   const body = await readJson(req);
   if (!body) return fail("بيانات غير صالحة");
-  const parsed = parsePart(body, false);
+
+  const parsed = parsePart({ ...body, branch: MAIN_BRANCH }, false);
   if (!parsed.ok) return fail(parsed.error);
 
   // parts.id is text without a default: generate a short URL-safe id (it must match the cart's id pattern).
   const id = `P${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+
   const { data, error } = await getSupabaseAdmin()
     .from("parts")
-    .insert({ model: "", years: "", alt_grade: null, image_url: null, is_active: true, ...parsed.value, id })
+    .insert({
+      model: "",
+      years: "",
+      alt_grade: null,
+      image_url: null,
+      is_active: true,
+      ...parsed.value,
+      branch: MAIN_BRANCH,
+      id,
+    })
     .select(FIELDS)
     .single();
+
   if (error) return dbFail("parts insert", error, "تعذر إضافة القطعة");
+
   return ok({ part: data }, 201);
 }
