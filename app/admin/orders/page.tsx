@@ -35,7 +35,7 @@ function Timeline({ status }: { status: OrderStatus }) {
 function OrderDrawer({ id, onClose, onChanged }: { id: string | null; onClose: () => void; onChanged: () => void }) {
   const { data, error, loading, reload } = useApi<Detail>(id ? `/api/admin/orders/${id}` : null);
   const [zoom, setZoom] = useState<string | null>(null);
-  const d = id && data?.order.id === id ? data : null; // ignore a previously opened order while the new one loads
+  const d = id && data?.order.id === id ? data : null;
   const o = d?.order;
   const done = () => { reload(); onChanged(); };
 
@@ -155,36 +155,84 @@ function OrdersInner() {
       {data && !list.length && <Empty>لا توجد طلبات مطابقة.</Empty>}
 
       {list.length > 0 && (
-        <div className="card overflow-x-auto !p-0">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-xs text-white/45">
-                <th className="px-4 py-3 text-start font-normal">#</th>
-                <th className="px-2 text-start font-normal">العميل</th>
-                <th className="px-2 text-start font-normal">التاريخ</th>
-                <th className="px-2 text-start font-normal">الدفع</th>
-                <th className="px-2 text-start font-normal">المبلغ</th>
-                <th className="px-2 text-start font-normal">الحالة</th>
-                <th className="px-4 text-end font-normal">إجراء</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((o) => (
-                <tr key={o.id} className="cursor-pointer border-b border-white/[0.07] last:border-0 hover:bg-white/[0.04]" onClick={() => setOpen(o.id)}>
-                  <td className="px-4 py-3 font-semibold text-white">{o.order_number ?? "—"}</td>
-                  <td className="px-2 text-white">{o.customer_name}<small className="block text-white/45" dir="ltr" style={{ textAlign: "right" }}>{o.customer_phone}</small></td>
-                  <td className="px-2 text-white/70">{fmtDateTime(o.created_at)}</td>
-                  <td className="px-2 text-white/80">{PAY_METHOD_LABEL[o.pay_method]}</td>
-                  <td className="px-2 font-semibold text-white">{money(o.total_amount)}</td>
-                  <td className="px-2"><Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge></td>
-                  <td className="px-4 text-end" onClick={(e) => e.stopPropagation()}>
-                    <div className="inline-flex"><OrderActions order={o} onDone={reload} compact /></div>
-                  </td>
+        <>
+          {/* عرض الكروت لشاشات الموبايل (الوضع العمودي) */}
+          <div className="grid gap-3 md:hidden">
+            {list.map((o) => (
+              <div
+                key={o.id}
+                onClick={() => setOpen(o.id)}
+                className="card cursor-pointer space-y-3 !p-4 transition hover:bg-white/[0.04]"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold text-white">#{o.order_number ?? "—"}</span>
+                    <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge>
+                  </div>
+                  <b className="text-base font-bold text-gold">{money(o.total_amount)}</b>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-white">{o.customer_name}</p>
+                    <p className="text-xs text-white/50" dir="ltr" style={{ textAlign: "right" }}>{o.customer_phone}</p>
+                  </div>
+                  <div className="shrink-0 text-end text-xs text-white/65">
+                    <p className="font-medium text-white/85">{PAY_METHOD_LABEL[o.pay_method]}</p>
+                    <p className="mt-0.5 text-white/45">{fmtDateTime(o.created_at)}</p>
+                  </div>
+                </div>
+
+                {(o.status === "pending" || o.status === "approved" || o.status === "shipped") && (
+                  <div className="border-t border-white/10 pt-3" onClick={(e) => e.stopPropagation()}>
+                    <OrderActions order={o} onDone={reload} compact />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* عرض الجدول لشاشات اللابتوب ووضع سطح المكتب على الهاتف */}
+          <div className="card hidden overflow-x-auto !p-0 md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-xs text-white/45">
+                  <th className="whitespace-nowrap px-3 py-3 text-start font-normal">#</th>
+                  <th className="px-3 py-3 text-start font-normal">العميل</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-start font-normal">التاريخ</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-start font-normal">الدفع</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-start font-normal">المبلغ</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-start font-normal">الحالة</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-end font-normal">إجراء</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {list.map((o) => (
+                  <tr
+                    key={o.id}
+                    className="cursor-pointer border-b border-white/[0.07] last:border-0 hover:bg-white/[0.04]"
+                    onClick={() => setOpen(o.id)}
+                  >
+                    <td className="whitespace-nowrap px-3 py-3 font-semibold text-white">#{o.order_number ?? "—"}</td>
+                    <td className="px-3 py-3 text-white">
+                      <span className="block font-medium">{o.customer_name}</span>
+                      <small className="block text-xs text-white/45" dir="ltr" style={{ textAlign: "right" }}>{o.customer_phone}</small>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-white/70">{fmtDateTime(o.created_at)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-white/80">{PAY_METHOD_LABEL[o.pay_method]}</td>
+                    <td className="whitespace-nowrap px-3 py-3 font-semibold text-white">{money(o.total_amount)}</td>
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
+                      <OrderActions order={o} onDone={reload} compact />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       <OrderDrawer id={open} onClose={() => setOpen(null)} onChanged={reload} />
     </>
@@ -193,4 +241,5 @@ function OrdersInner() {
 
 export default function OrdersPage() {
   return <Suspense fallback={<Spinner />}><OrdersInner /></Suspense>;
-}
+                    }
+    
