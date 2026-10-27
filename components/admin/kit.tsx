@@ -196,14 +196,14 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   useEscape(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`menu-surface flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-3xl text-white shadow-2xl ${wide ? "max-w-2xl" : "max-w-xl"}`}>
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={`menu-surface flex h-[min(88dvh,760px)] w-full flex-col overflow-hidden rounded-t-3xl border border-white/10 text-white shadow-2xl sm:h-auto sm:max-h-[min(88dvh,760px)] sm:rounded-3xl ${wide ? "sm:max-w-2xl" : "sm:max-w-xl"}`}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-1.5 text-white/65 hover:text-white"><X size={18} /></button>
+          <button type="button" aria-label="إغلاق" onClick={onClose} className="rounded-full p-2 text-white/65 hover:bg-white/10 hover:text-white"><X size={18} /></button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-5 py-4">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:p-5">{children}</div>
+        {footer && <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-white/10 bg-black/20 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">{footer}</div>}
       </div>
     </div>
   );
